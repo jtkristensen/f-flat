@@ -15,9 +15,9 @@ Assuming that you are on a Debian-based linux distro:
  1. Check that your machine has a group for playing audio by typing:
     > `grep audio /etc/group`  
     look for something that looks like:  
-    > `**audio**:x:29:pulse`  
+    > `audio:x:29:pulse`  
     And add yourself to the group by typing :  
-    > `sudo gpasswd -a **yourUserName** audio`
+    > `sudo gpasswd -a` **yourUserName** `audio`
  2. Install a music-synthesis or sequencer program. (I suggest fluidsynth).
     > `sudo apt-get install fluidsynth`  
     > `sudo apt-get install fluid-soundfont-gm`  
