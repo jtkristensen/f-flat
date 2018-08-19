@@ -1,0 +1,154 @@
+{
+module Lexer (* A Lexer for the Fb Language *)
+
+open System;;
+open System.Text;;
+open Microsoft.FSharp.Text.Lexing;;
+
+(******** Usual Boiler Plate, For Reasonable Error Messages ********)
+let mutable lineNumber   = 1                // current line number
+let mutable lineStartPos = [0]              // list of start position
+
+let rec getLineColumn pos line = function
+    |  (p1 :: _ ) when pos >= p1 -> (line, pos - p1)
+    |  (_  :: ps)                -> getLineColumn pos (line - 1) ps
+    |  []                        -> failwith "Impossible Error !"
+
+let getPos (lexbuf : LexBuffer<'char>) =
+      getLineColumn lexbuf.StartPos.pos_cnum (lineNumber) (lineStartPos)
+
+exception LexicalError of string * (int * int) // message, position
+let lexerError lexbuf s = raise (LexicalError (s, getPos lexbuf))
+
+(******** Usefull Functions For Handling Strings ******)
+let utf8                 = Encoding.UTF8.GetString : byte [] -> string;;
+let explode (s : string) = [for c in s -> c]
+let implode              = List.map string >> List.fold (+) ""
+
+type State = Tones | Rythms
+let mutable state = Rythms
+
+let keyword pos = function
+  | "rythm"       -> Parser.RYTHM       pos
+  | "phrase"      -> Parser.PHRASE      pos
+  | "melody"      -> Parser.MELODY      pos
+  | "rest"        -> Parser.REST        pos
+  | "instrument"  -> Parser.INSTRUMENT  pos // two words for the same thing
+  | "midi"        -> Parser.INSTRUMENT  pos // {~_^}
+  | "composition" -> Parser.COMPOSITION pos
+  | "before"      -> Parser.BEFORE      pos
+  | "after"       -> Parser.AFTER       pos
+  | "ionian"      -> Parser.IONIAN      pos
+  | "dorian"      -> Parser.DORIAN      pos
+  | "phrygian"    -> Parser.PHRYGIAN    pos
+  | "lydian"      -> Parser.LYDIAN      pos
+  | "mixolydian"  -> Parser.MIXOLYDIAN  pos
+  | "aeolian"     -> Parser.AEOLIAN     pos
+  | "locrian"     -> Parser.LOCRIAN     pos
+  | name          -> Parser.ID name
+
+let rec lexNote (name, pitch, flats, sharps) = function
+    | '+'   :: ns -> lexNote (name, pitch+1, flats, sharps) ns
+    | '-'   :: ns -> lexNote (name, pitch-1, flats, sharps) ns
+    | 'b'   :: ns -> lexNote (name, pitch, flats+1, sharps) ns
+    | '#'   :: ns -> lexNote (name, pitch, flats, sharps+1) ns
+    | name' :: ns -> lexNote (name', pitch, flats, sharps)  ns
+    | _           -> Parser.MNOTE (name, pitch, flats, sharps)
+
+let rec lexStep (step, pitch, flats, sharps) = function
+    | '+'   :: ns  -> lexStep (step, pitch+1, flats, sharps) ns
+    | '-'   :: ns  -> lexStep (step, pitch-1, flats, sharps) ns
+    | 'b'   :: ns  -> lexStep (step, pitch, flats+1, sharps) ns
+    | '#'   :: ns  -> lexStep (step, pitch, flats, sharps+1) ns
+    | step' :: ns  -> lexStep (step*10 + (int (string step')),
+                               pitch, flats, sharps)  ns
+    | _            -> Parser.MSTEP (step, pitch, flats, sharps)
+
+let rec lexRest buf =
+  match (utf8 >> explode) buf with
+    | 'r' :: cs -> lexTrip true  cs
+    |        cs -> lexTrip false cs
+
+and lexTrip rest = function
+  | 't' :: cs -> lexBeat true  rest cs
+  |        cs -> lexBeat false rest cs
+
+and lexBeat triplet rest =
+  let count c          = List.length << (List.filter ((=) c))
+  let decorations   fs = (count '\'' fs, count '.' fs)
+  let beat duration fs = Parser.RNOTE (duration, decorations fs, triplet, rest)
+  function
+   | '.' :: '|' :: fs -> beat 4 fs
+   | 'o' :: '|' :: fs -> beat 2 fs
+   | 'o' ::        fs -> beat 1 fs
+   |               fs ->
+     let ((flags, dots), size) = (decorations fs, List.length fs) in
+     beat ((implode >> int) fs.[..(size - 1 - flags - dots)]) fs
+}
+
+(******** RegEx Macros ********)
+let whitespace = [' ' '\t' '\r']+
+let breakline  = ['\n' '\012']
+let number     = ['1'-'9']['0'-'9']*
+let musicnote  = ['A' 'B' 'C' 'D' 'E' 'F' 'G'](['#']?|['b']?)('+'*|'-'*)
+let scalestep  = number(['#']?|['b']?)('+'*|'-'*)
+let note       = "o" | "o|"
+let full_note  = ".|"
+let rythm      = note | full_note
+let identifier = ['a'-'z']['a'-'z' '0'-'9' '_']*
+let flag       = ['\'']
+let dot        = ['.']
+let beat       = (rythm | note dot+ | (full_note | number)((flag+ dot*) | dot+))
+let triplet    = ['t'] (beat | number)
+let rest       = ['r'] (beat | number | triplet)
+let comment    = "//" [^ '\n' '\012']*
+
+(******** Rules For Identifying Tokens ********)
+rule Token = parse
+  | whitespace { Token lexbuf }
+  | comment    { Token lexbuf }
+  | beat       { lexRest lexbuf.Lexeme }
+  | triplet    { lexRest lexbuf.Lexeme }
+  | rest       { lexRest lexbuf.Lexeme }
+  | number     { Parser.INT ((utf8 >> int ) lexbuf.Lexeme) }
+  | musicnote  { (if   state = Tones
+                  then lexNote  (' ', 0, 0, 0) ((utf8 >> explode) lexbuf.Lexeme)
+                  else lexerError lexbuf "Unexpected Musical Note") }
+  | scalestep  { (if   state = Tones
+                  then lexStep (0, 0, 0, 0) ((utf8 >> explode) lexbuf.Lexeme)
+                  else lexerError lexbuf "Unexpected Musical Note") }
+  | '0'        { Parser.ZERO (getPos lexbuf)}
+  | '{'        { (if   state <> Tones
+                  then state <- Tones
+                  else lexerError lexbuf "Unexpected Symbol '{'") ;
+                  Parser.LCURL (getPos lexbuf) }
+  | '}'        { (if   state = Tones
+                  then state <- Rythms
+                  else lexerError lexbuf "Unexpected Symbol '}'") ;
+                  Parser.RCURL (getPos lexbuf)}
+  | "||"       { Parser.DOUBLE_BAR (getPos lexbuf) }
+  | "|:"       { Parser.REPEAT_BAR_OPEN  (getPos lexbuf) }
+  | ":|"       { Parser.REPEAT_BAR_CLOSE (getPos lexbuf) }
+  | "::"       { Parser.BEFORE (getPos lexbuf) }
+  | "<-"       { Parser.GETS  (getPos lexbuf) }
+  | '|'        { Parser.BAR   (getPos lexbuf) }
+  | '/'        { Parser.DIV   (getPos lexbuf) }
+  | '='        { Parser.EQ    (getPos lexbuf) }
+  | '('        { Parser.LPAR  (getPos lexbuf) }
+  | ')'        { Parser.RPAR  (getPos lexbuf) }
+  | '+'        { Parser.PLUS  (getPos lexbuf) }
+  | '-'        { Parser.MINUS (getPos lexbuf) }
+  | '*'        { Parser.TIMES (getPos lexbuf) }
+  | ','        { Parser.COMMA (getPos lexbuf) }
+  | 'U'        { Parser.UNION (getPos lexbuf) }
+  | 'I'        { Parser.INTERSECTION (getPos lexbuf) }
+  | 'P'        { Parser.PROJECTION   (getPos lexbuf) }
+  | identifier { (utf8 >> keyword (getPos lexbuf)) lexbuf.Lexeme }
+  | breakline  { lineNumber   <- lineNumber + 1;
+                 lineStartPos <- lexbuf.StartPos.pos_cnum :: lineStartPos;
+                 Token lexbuf
+               }
+  | eof        { Parser.EOF () }
+  | _          { lexerError lexbuf ("Unexpected character '" +
+                                    ((char >> string) (lexbuf.Lexeme.[0]))
+                                    + "'") }

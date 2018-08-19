@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# Shell script for running the fasto compiler.  Assumes that the
+# powerpack is in ../lib.
+
+base_dir="$(dirname "$0")"
+
+export MONO_PATH="$base_dir/../lib/"
+
+if [ ! -f ./Fflat.exe ]; then
+    echo "This file depends on Fflat.exe"
+else
+    mono "$base_dir/Fflat.exe" "$@"
+fi

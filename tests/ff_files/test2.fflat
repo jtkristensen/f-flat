@@ -1,0 +1,8 @@
+midi piano = 0, 255
+
+melody x piano { C } ionian { 1 2 3 4 5 6 7- 8-  }
+rythm  y (4 / 4) 2 |: 4 4 8 8 4 :|
+rythm  h (4 / 4) 2 |: 8 8 8 8 8 8 8 8 :|
+
+composition main =
+            x <- y :: { A } aeolian x <- h

@@ -1,0 +1,173 @@
+%{
+
+open Microsoft.FSharp.Text.Parsing
+
+exception SyntacticError of string * (int * int) // message, position
+let parserError msg pos = raise (SyntacticError (msg, pos))
+
+let rec ParseNoteAttributes = function
+  | (note, 0, 0)      -> note
+  | (note, 0, sharps) -> (ParseNoteAttributes >> AbSyn.Sharp) (note, 0, sharps - 1)
+  | (note, flats,  s) -> (ParseNoteAttributes >> AbSyn.Flat ) (note, flats - 1,  s)
+
+let ParseMusicalNote (name, p, bs, ss) =
+  match name with
+   | 'A' -> ParseNoteAttributes (AbSyn.NoteA p, bs, ss)
+   | 'B' -> ParseNoteAttributes (AbSyn.NoteB p, bs, ss)
+   | 'C' -> ParseNoteAttributes (AbSyn.NoteC p, bs, ss)
+   | 'D' -> ParseNoteAttributes (AbSyn.NoteD p, bs, ss)
+   | 'E' -> ParseNoteAttributes (AbSyn.NoteE p, bs, ss)
+   | 'F' -> ParseNoteAttributes (AbSyn.NoteF p, bs, ss)
+   | 'G' -> ParseNoteAttributes (AbSyn.NoteG p, bs, ss)
+   |  H   -> failwith ("Illegal MusicalNote Name " + (string H))
+
+let ParseNoteStep (value, pitch, bs, ss) =
+    ParseNoteAttributes (AbSyn.Step (value, pitch), bs, ss)
+
+let rec parseBeat (duration, decorations, triplet, rest) =
+  match (triplet, rest) with
+   | (_, true) -> AbSyn.Rest   (parseBeat (duration, decorations, triplet, false))
+   | (true, _) -> AbSyn.Triplet(parseBeat (duration, decorations, false, false))
+   | _         -> parseDecorations (AbSyn.RNote duration) decorations
+
+and parseDecorations b = function
+  | (0, 0)         -> b
+  | (0,     dots)  -> parseDecorations (AbSyn.Dotted  b) (0        , dots - 1)
+  | (flags, dots)  -> parseDecorations (AbSyn.Flagged b) (flags - 1, dots)
+
+%}
+
+%token <int>       INT
+%token <int * (int * int) * bool * bool> RNOTE
+%token <char * int * int * int>          MNOTE
+%token <int  * int * int * int>          MSTEP
+%token <string>    ID
+%token <(int*int)> INSTRUMENT RYTHM PHRASE MELODY COMPOSITION
+%token <(int*int)> IONIAN DORIAN PHRYGIAN LYDIAN MIXOLYDIAN AEOLIAN LOCRIAN
+%token <(int*int)> BAR  REPEAT_BAR_OPEN DOUBLE_BAR REPEAT_BAR_CLOSE REST
+%token <(int*int)> LPAR RPAR RCURL LCURL PLUS MINUS TIMES DIV EQ
+%token <(int*int)> BEFORE AFTER GETS UNION INTERSECTION PROJECTION
+%token <(int*int)> COMMA ZERO
+%token <unit>      EOF
+
+%start Program
+%type <AbSyn.UnchekedDeclaration list> Program
+%type <AbSyn.UnchekedDeclaration>      Declaration
+%type <AbSyn.RythmNote>                RNote
+%type <AbSyn.RythmNote list>           RNotes
+%type <AbSyn.Note>                     MusicalNote
+%type <AbSyn.Note list>                MusicalNotes
+%type <AbSyn.Key>                      KeySignature
+%type <AbSyn.Measure>                  Measure
+%type <AbSyn.Measure list>             Measures
+%type <AbSyn.Phrasing>                 Phrasing
+%type <AbSyn.Composition>              Composition
+
+// TODO : Add Precedence Levels For Composition Operators
+
+%right    BEFORE AFTER
+%right    PLUS
+%left     MINUS UNION INTERSECTION
+%right    TIMES
+%nonassoc PROJECTION
+%nonassoc GETS
+%nonassoc castprec
+
+%%
+Program : Declarations { $1 }
+;
+
+Phrasing :
+ | LPAR Phrasing RPAR { $2 }
+ | ID { AbSyn.Simple $1 }
+ | Phrasing TIMES INT             { AbSyn.Repetition   ($1, $3) }
+ | Phrasing MINUS        Phrasing { AbSyn.Subtraction  ($1, $3) }
+ | Phrasing UNION        Phrasing { AbSyn.Union        ($1, $3) }
+ | Phrasing INTERSECTION Phrasing { AbSyn.Intersection ($1, $3) }
+ | ID       PROJECTION   Phrasing { AbSyn.Projection   ($3, $1) }
+ | LPAR INT DIV INT RPAR Phrasing %prec castprec
+    { AbSyn.RCast ($6 , AbSyn.Sig ($2, $4)) }
+;
+
+Composition :
+ | LPAR Composition RPAR { $2 }
+ | ID  { AbSyn.Var $1 }
+ | Composition PLUS   Composition { AbSyn.Simultanious ($1, $3) }
+ | Composition BEFORE Composition { AbSyn.Before ($1, $3) }
+ | Composition AFTER  Composition { AbSyn.After  ($1, $3) }
+ | Composition GETS   Phrasing { AbSyn.Assignment ($1, $3) }
+ | KeySignature ID %prec castprec { AbSyn.MCast ($2, $1) }
+;
+
+Declarations :
+ | Declaration Declarations { $1 :: $2 }
+ | Declaration              { $1 :: [] }
+;
+
+Declaration :
+ | RYTHM ID LPAR INT DIV INT RPAR DOUBLE_BAR Measures DOUBLE_BAR
+    { AbSyn.Beat ($2, AbSyn.Sig ($4, $6), $9, $1) }
+ | RYTHM ID LPAR INT DIV INT RPAR REPEAT_BAR_OPEN Measures REPEAT_BAR_CLOSE
+    { AbSyn.Repeat ($2, AbSyn.Sig ($4, $6), 2, $9, $1)}
+ | RYTHM ID LPAR INT DIV INT RPAR INT REPEAT_BAR_OPEN Measures REPEAT_BAR_CLOSE
+    { AbSyn.Repeat ($2, AbSyn.Sig ($4, $6), $8, $10, $1)}
+ | MELODY ID ID KeySignature LCURL MusicalNotes RCURL
+   { AbSyn.ComposedMelody ($2, AbSyn.InstrumentName $3, $4, $6, $1) }
+ | PHRASE ID EQ BAR RNotes BAR
+    { AbSyn.RythmicPhrase ($2, $5, $1) }
+ | PHRASE ID EQ RNotes
+    { AbSyn.RythmicPhrase ($2, $4, $1) }
+ | PHRASE ID EQ LCURL MusicalNotes RCURL
+    { AbSyn.MelodicPhrase ($2, $5, $1) }
+ | INSTRUMENT ID EQ INT COMMA INT
+    { AbSyn.InstrumentDeclaration ($2, $4, $6, $1) }
+ | INSTRUMENT ID EQ ZERO COMMA INT
+    { AbSyn.InstrumentDeclaration ($2,  0, $6, $1) }
+ | COMPOSITION ID EQ Composition
+    { AbSyn.CompositionDeclaration ($2, $4, $1) }
+;
+
+KeySignature :
+ | LCURL MusicalNote RCURL IONIAN     { AbSyn.Ionian     $2 }
+ | LCURL MusicalNote RCURL DORIAN     { AbSyn.Dorian     $2 }
+ | LCURL MusicalNote RCURL PHRYGIAN   { AbSyn.Phrygian   $2 }
+ | LCURL MusicalNote RCURL LYDIAN     { AbSyn.Lydian     $2 }
+ | LCURL MusicalNote RCURL MIXOLYDIAN { AbSyn.Mixolydian $2 }
+ | LCURL MusicalNote RCURL AEOLIAN    { AbSyn.Aeolian    $2 }
+ | LCURL MusicalNote RCURL LOCRIAN    { AbSyn.Locrian    $2 }
+;
+
+MusicalNotes :
+ | MusicalNote MusicalNotes { $1 :: $2 }
+ | MusicalNote              { $1 :: [] }
+;
+
+MusicalNote :
+ | MNOTE { ParseMusicalNote $1 }
+ | MSTEP { ParseNoteStep    $1 }
+ | ID    { AbSyn.NotePhrase $1 }
+ | INT   { AbSyn.Step  ($1, 0) }
+;
+
+RNote :
+ |      LPAR RNotes RPAR { AbSyn.Tie             $2  }
+ | REST LPAR RNotes RPAR { AbSyn.Rest (AbSyn.Tie $3) }
+ | RNOTE                 { parseBeat             $1  }
+ | INT                   { AbSyn.RNote           $1  }
+ | ID                    { AbSyn.PhraseID        $1  }
+;
+
+RNotes :
+ | RNote RNotes { $1 :: $2 }
+ | RNote        { $1 :: [] }
+;
+
+Measure :
+ | RNotes  { AbSyn.Single $1 }
+;
+
+Measures :
+ | Measure BAR Measures { $1 :: $3 }
+ | Measure              { $1 :: [] }
+;
+%%
