@@ -21,17 +21,26 @@ groups | grep -o audio &> /dev/null || (echo "add youself the the group 'audio'"
 echo
 echo "*************************************************************************"
 echo "******************* Testing By Aural Inspection *************************"
+echo "********** - Remember to start fluidsynth at port 128:0 - ***************"
 echo "*************************************************************************"
-echo "*If you cannot hear anything, remember to start fluidsynth at port 128:0*"
+
+
+echo "********** - Running : Example Piece ************************************"
 echo "*************************************************************************"
+rm -f ../tests/piece.py ../tests/piece.mid
+./fflat -t 90 -o ../tests/piece.py -T piece ../tests/ff_files/piece.fflat
+cd ../tests/ ; python piece.py ; aplaymidi -p 128:0 piece.mid; cd ../bin/ ;
+
+echo "********** - Running : Scales *******************************************"
+echo "*************************************************************************"
+rm -f ../tests/scales.py ../tests/scales.mid
+./fflat -t 90 -o ../tests/scales.py -T scales ../tests/ff_files/scales.fflat
+cd ../tests/ ; python scales.py ; aplaymidi -p 128:0 scales.mid; cd ../bin/ ;
+
+echo "********** - Running : Modes ********************************************"
+echo "*************************************************************************"
+rm -f ../tests/modes.py ../tests/modes.mid
+./fflat -t 90 -o ../tests/modes.py -T modes ../tests/ff_files/modes.fflat
+cd ../tests/ ; python modes.py ; aplaymidi -p 128:0 modes.mid; cd ../bin/ ;
+
 echo
-
-# lille peter edderkop. - sound font should be /usr/share/sounds/sf2/FluidR3_GM.sf2
-rm -f ../tests/test1.py ../tests/transposing.mid
-./fflat -t 120 -o ../tests/test1.py -T transposing ../tests/ff_files/test1.fflat
-cd ../tests/ ; python test1.py ; aplaymidi -p 128:0 transposing.mid; cd ../bin/ ;
-
-# Something else for ../lib/sfx/Nice-Keys-B-JNv1.5.sf2
-rm -f ../tests/test2.py ../tests/pianotest.mid
-./fflat -t 120 -o ../tests/test2.py -T pianotest ../tests/ff_files/test2.fflat
-# cd ../tests/ ; python test2.py ; aplaymidi -p 128:0 pianotest.mid; cd ../bin/ ;

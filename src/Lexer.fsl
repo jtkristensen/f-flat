@@ -29,7 +29,7 @@ type State = Tones | Rythms
 let mutable state = Rythms
 
 let keyword pos = function
-  | "rythm"       -> Parser.RYTHM       pos
+  | "rhythm"      -> Parser.RYTHM       pos
   | "phrase"      -> Parser.PHRASE      pos
   | "melody"      -> Parser.MELODY      pos
   | "rest"        -> Parser.REST        pos
@@ -129,7 +129,7 @@ rule Token = parse
   | "||"       { Parser.DOUBLE_BAR (getPos lexbuf) }
   | "|:"       { Parser.REPEAT_BAR_OPEN  (getPos lexbuf) }
   | ":|"       { Parser.REPEAT_BAR_CLOSE (getPos lexbuf) }
-  | "::"       { Parser.BEFORE (getPos lexbuf) }
+  | ";"        { Parser.BEFORE (getPos lexbuf) }
   | "<-"       { Parser.GETS  (getPos lexbuf) }
   | '|'        { Parser.BAR   (getPos lexbuf) }
   | '/'        { Parser.DIV   (getPos lexbuf) }

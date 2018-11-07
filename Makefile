@@ -58,3 +58,9 @@ clean:
 	rm -f $(src)Lexer.fs $(src)Parser.fs
 	rm -f $(src)Parser.fsyacc.output $(src)Parser.fsi
 	rm -f $(bin)*.dll $(bin)*.exe $(bin)fflat
+
+test:
+	$(MAKE) clean
+	$(MAKE) Fflat.exe
+	reset
+	cd ./bin && ./tests.sh

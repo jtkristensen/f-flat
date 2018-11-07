@@ -147,9 +147,9 @@ let c2 = [NoteC 0; Flat (NoteD 0); NoteD 0; Flat (NoteE 0);
           NoteE 0; NoteF 0; Flat (NoteG 0); NoteG 0; Flat (NoteA 0);
           NoteA 0; Flat (NoteB 0); NoteB 0]
 
-let c3 = [Sharp (NoteB 0); Flat (NoteD 0); NoteD 0; Flat (NoteE 0);
+let c3 = [Sharp (NoteB (-1)); Flat (NoteD 0); NoteD 0; Flat (NoteE 0);
           Flat (NoteF 0); Sharp (NoteE 0); Flat (NoteG 0); NoteG 0;
-          Flat (NoteA 0); NoteA 0; Flat (NoteB 0); Flat (NoteC 0)]
+          Flat (NoteA 0); NoteA 0; Flat (NoteB 0); Flat (NoteC 1)]
 
 // Shift list 'l' (of length 'n') by m
 let shift (n : int) (m : int) (l : 'a list) : 'a list =
@@ -188,6 +188,20 @@ let rec get n = function
   | Flat  note  -> Flat  (get n note)
   |       note  -> verr (sprintf "Invalid key signature %A" note) (-1, 0)
 
+// Moves a music note to the (f n)'th octave
+let rec getWith f = function
+  | NoteC n         -> NoteC (f n)
+  | NoteD n         -> NoteD (f n)
+  | NoteE n         -> NoteE (f n)
+  | NoteF n         -> NoteF (f n)
+  | NoteG n         -> NoteG (f n)
+  | NoteA n         -> NoteA (f n)
+  | NoteB n         -> NoteB (f n)
+  | Step (m, n) -> Step(m, f n)
+  | Sharp note  -> Sharp (getWith f note)
+  | Flat  note  -> Flat  (getWith f note)
+  |       note  -> verr (sprintf "Invalid key signature %A" note) (-1, 0)
+
 // Find a musical note's index into a chromatic scale
 let getIndex key =
   let search = List.zip [0..11] >> List.tryFind (fun (step, n') -> n' = (get 0 key)) in
@@ -214,7 +228,8 @@ let chromatic' = function
 // (To keep intervals persistant)
 let chromatic key view =
   let (a, b) = split (getIndex key) (chromatic' view) in
-  (List.map (get 1) a) @ b
+  (List.map (getWith ((+) 1)) a) @ b
+
 
 // Computes the chromatic steps of a diatonic scale
 // (fill in the missing 4 notes)
@@ -231,6 +246,8 @@ let rec diatonicSteps f d c = function
 let rec simplify = function
   | Sharp (Flat  note) -> simplify note
   | Flat  (Sharp note) -> simplify note
+  | Sharp (NoteB n)    -> NoteC (n + 1)
+  | Flat  (NoteC n)    -> NoteB (n - 1)
   | Sharp note         -> Sharp (simplify note)
   | Flat  note         -> Flat  (simplify note)
   | note               -> note

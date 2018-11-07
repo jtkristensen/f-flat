@@ -1,0 +1,45 @@
+
+midi wood_blocks = 12, 78
+midi viola       = 42, 92
+midi flutes      = 73, 78
+
+melody b1 wood_blocks { C  } ionian { 1  3  5  3  }
+melody v1 viola       { C  } ionian { 5  2  4  3  }
+melody s1 flutes      { C  } ionian { 3- 4- 2- 3- }
+
+rhythm rh1s  (4 / 4) 4 |: 1          :|
+rhythm rh4ts (2 / 4) 8 |: 6   6   6  :|
+rhythm rh8s  (2 / 4) 8 |: 8  8  8  8 :|
+
+composition intro =
+  b1 <- rh8s +
+  b1 <- rh4ts
+
+composition theme =
+  b1 <- rh8s  +
+  b1 <- rh4ts +
+  s1 <- rh1s  +
+  ({C-} ionian s1 <- rh1s) + // double 1 octave below.
+  v1 <- rh1s
+
+composition variation1 =
+  b1 <- rh8s  +
+  b1 <- rh4ts +
+  v1 <- rh1s  +
+  ({E+} phrygian s1 <- rh1s) +
+  ({E-} phrygian s1 <- rh1s) // double 1 octave below.
+
+composition variation2 =
+  b1 <- rh8s  +
+  b1 <- rh4ts +
+  ({A-} aeolian v1 <- rh1s) +
+  ({F+} lydian s1 <- rh1s)  // try something else.
+
+// Main structure of the composition.
+composition main =
+  intro;
+  theme;
+  variation1;
+  variation2;
+  theme;
+  intro
