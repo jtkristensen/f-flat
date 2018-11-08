@@ -1,4 +1,4 @@
-F♭ V.0.0.1
+F♭ V.0.8
 ==========
 
 ## A programming language aimed at music composition.
