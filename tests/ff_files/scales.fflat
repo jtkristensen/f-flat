@@ -1,9 +1,10 @@
 
 midi piano = 0, 255
 
-melody x piano { C } ionian { 1 2 3 4 5 6 7 8 }
+voice x piano { C } ionian { 1 2 3 4 5 6 7 8 }
 rhythm  h (4 / 4) 1 |: 8 8 8 8 8 8 8 8 :|
 
+// This composition is a test, that plays all the ionian mode in all 12 keys
 composition main =
    ({C } ionian x) <- h;
    ({C#} ionian x) <- h;

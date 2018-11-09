@@ -24,6 +24,11 @@ echo "******************* Testing By Aural Inspection *************************"
 echo "********** - Remember to start fluidsynth at port 128:0 - ***************"
 echo "*************************************************************************"
 
+echo "********** - Running : Twinkle Twinkle **********************************"
+echo "*************************************************************************"
+rm -f ../tests/twinkle.py ../tests/twinkle.mid
+./fflat -t 90 -o ../tests/twinkle.py -T twinkle ../tests/ff_files/twinkle.fflat
+cd ../tests/ ; python twinkle.py ; aplaymidi -p 128:0 twinkle.mid; cd ../bin/ ;
 
 echo "********** - Running : Example Piece ************************************"
 echo "*************************************************************************"

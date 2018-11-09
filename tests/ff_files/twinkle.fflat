@@ -1,0 +1,18 @@
+
+
+midi wood_blocks = 12, 78
+
+voice twinkle_twinkle wood_blocks { C } ionian { 1 1 5 5 6 6 5 }
+voice how_i_wonder    wood_blocks { C } ionian { 4 4 3 3 2 2 1 }
+
+rhythm little_star  (4 / 4) 1 |: 4 4 4 4 | 4 4 2 :|
+rhythm what_you_are (4 / 4) 1 |: 4 4 4 4 | 4 4 2 :|
+
+// We consider this the 'hello world' of music composition languages.
+composition main =
+   ({G-} mixolydian twinkle_twinkle <- little_star ) +
+   ({E-} phrygian   twinkle_twinkle <- little_star ) +
+                    twinkle_twinkle <- little_star ;
+   ({G-} mixolydian how_i_wonder    <- what_you_are) +
+   ({E-} phrygian   how_i_wonder    <- what_you_are) +
+                    how_i_wonder    <- what_you_are

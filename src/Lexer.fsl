@@ -31,7 +31,7 @@ let mutable state = Rythms
 let keyword pos = function
   | "rhythm"      -> Parser.RYTHM       pos
   | "phrase"      -> Parser.PHRASE      pos
-  | "melody"      -> Parser.MELODY      pos
+  | "voice"       -> Parser.MELODY      pos
   | "rest"        -> Parser.REST        pos
   | "instrument"  -> Parser.INSTRUMENT  pos // two words for the same thing
   | "midi"        -> Parser.INSTRUMENT  pos // {~_^}

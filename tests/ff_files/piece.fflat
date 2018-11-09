@@ -3,9 +3,9 @@ midi wood_blocks = 12, 78
 midi viola       = 42, 92
 midi flutes      = 73, 78
 
-melody b1 wood_blocks { C  } ionian { 1  3  5  3  }
-melody v1 viola       { C  } ionian { 5  2  4  3  }
-melody s1 flutes      { C  } ionian { 3- 4- 2- 3- }
+voice b1 wood_blocks { C  } ionian { 1  3  5  3  }
+voice v1 viola       { C  } ionian { 5  2  4  3  }
+voice s1 flutes      { C  } ionian { 3- 4- 2- 3- }
 
 rhythm rh1s  (4 / 4) 4 |: 1          :|
 rhythm rh4ts (2 / 4) 8 |: 6   6   6  :|
